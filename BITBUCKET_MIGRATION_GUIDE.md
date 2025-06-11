@@ -143,6 +143,127 @@ Some features may not have direct equivalents in Bitbucket:
 3. Begin implementing API client adaptations
 4. Test with simple PR comment scenarios
 
+## Implementation Status
+
+### ✅ Completed
+
+#### Phase 1: Infrastructure Setup
+- **Webhook Receiver** (`src/bitbucket/webhook-receiver/`)
+  - Express server implementation for standalone deployment
+  - AWS Lambda handler for serverless deployment
+  - Webhook signature verification
+  - Trigger phrase detection
+  - Pipeline triggering via Bitbucket API
+
+#### Phase 2: Code Adaptation
+- **Bitbucket API Client** (`src/bitbucket/api/client.ts`)
+  - REST API v2 client implementation
+  - PR/Issue/Comment operations
+  - Repository and branch operations
+  - Pipeline triggering support
+  
+- **Data Models** (`src/bitbucket/types.ts`)
+  - Complete TypeScript types for Bitbucket entities
+  - Mapped to GitHub equivalents where possible
+  
+- **Data Fetcher** (`src/bitbucket/data/fetcher.ts`)
+  - Fetch PR data with comments, commits, and diff stats
+  - Fetch issue data with comments
+  - Pagination support for all endpoints
+  
+- **Data Formatter** (`src/bitbucket/data/formatter.ts`)
+  - Format PR/Issue data for Claude prompts
+  - Consistent output format with GitHub version
+
+#### Phase 3: Trigger Mechanism
+- **Trigger Validation** (`src/bitbucket/validation/trigger.ts`)
+  - Detect trigger phrases in comments
+  - User allowlist support
+  - Command extraction from comments
+  
+- **Comment Operations** (`src/bitbucket/operations/comments.ts`)
+  - Create/update PR and issue comments
+  - Progress tracking with Claude signature
+  - Find existing Claude comments
+  
+- **Branch Operations** (`src/bitbucket/operations/branch.ts`)
+  - Create branches for issues
+  - Check branch existence
+  - Generate branch names
+
+#### Phase 4: Pipeline Updates
+- **Pipeline Configuration** (`bitbucket-pipelines.yml`)
+  - Environment variable validation step
+  - Custom pipeline for webhook triggers
+  - Manual trigger pipeline for testing
+  - Scheduled polling pipeline option
+  
+- **Entrypoints** (`src/entrypoints/bitbucket-*.ts`)
+  - `bitbucket-prepare.ts`: Main entry point for processing triggers
+  - `bitbucket-update-comment.ts`: Update comments with results
+  - `bitbucket-poll-triggers.ts`: Poll for new triggers (scheduled approach)
+  
+- **Deployment Guide** (`docs/BITBUCKET_DEPLOYMENT.md`)
+  - Complete deployment instructions
+  - Multiple deployment options (webhook, polling, manual)
+  - Security considerations
+
+### ❌ Not Implemented
+
+1. **File Operations**
+   - Bitbucket doesn't have direct file update APIs
+   - Requires commit creation through Source API
+   - Would need significant additional work
+
+2. **Pull Request Creation**
+   - API exists but not implemented
+   - Would need additional methods in branch operations
+
+3. **MCP Server for Bitbucket**
+   - Would need complete rewrite of GitHub MCP server
+   - File operations would work differently
+
+4. **Review Comments**
+   - Inline code review comments
+   - Different structure than GitHub
+
+5. **Integration with claude-code-base-action**
+   - The main action still expects GitHub context
+   - Would need adapter layer or fork
+
+### 🔧 Limitations
+
+1. **No Native Comment Events**
+   - Must use webhook receiver or polling
+   - Adds deployment complexity
+
+2. **Different Permission Model**
+   - Bitbucket uses different auth mechanisms
+   - No OIDC support like GitHub
+
+3. **API Differences**
+   - No GraphQL API (REST only)
+   - Some operations require multiple API calls
+
+### 📋 Setup Instructions
+
+See [`docs/BITBUCKET_DEPLOYMENT.md`](docs/BITBUCKET_DEPLOYMENT.md) for complete deployment instructions.
+
+#### Quick Start
+
+1. **Deploy Webhook Receiver** (choose one):
+   - AWS Lambda: See deployment guide
+   - Google Cloud Functions: See deployment guide
+   - Standalone server: `cd src/bitbucket/webhook-receiver && npm start`
+
+2. **Configure Bitbucket**:
+   - Add webhook pointing to receiver
+   - Set repository variables (see deployment guide)
+
+3. **Test Integration**:
+   - Create PR and comment with `@claude test`
+   - Check Pipelines page for execution
+
 ## Additional Resources
 
 - [Bitbucket API Documentation](https://developer.atlassian.com/cloud/bitbucket/rest/)

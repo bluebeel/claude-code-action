@@ -1,0 +1,21 @@
+{
+  "name": "bitbucket-webhook-receiver",
+  "version": "1.0.0",
+  "description": "Webhook receiver for triggering Bitbucket Pipelines on Claude comments",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "tsc",
+    "dev": "ts-node server.ts"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0"
+  }
+}
