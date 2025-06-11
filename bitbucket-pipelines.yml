@@ -1,0 +1,58 @@
+# Bitbucket Pipeline configuration for Claude Code integration
+# This configuration runs on pull request events
+
+definitions:
+  caches:
+    bun: ~/.bun/install/cache
+  
+  steps:
+    - step: &claude-code-action
+        name: Claude Code Action
+        image: node:20
+        caches:
+          - node
+          - bun
+        script:
+          # Install Bun runtime
+          - curl -fsSL https://bun.sh/install | bash
+          - export PATH="$HOME/.bun/bin:$PATH"
+          
+          # Install dependencies
+          - bun install
+          
+          # Run the Claude Code Action
+          - bun run src/entrypoints/prepare.ts
+          
+          # Note: This requires the claude-code-base-action to be adapted for Bitbucket
+          # For now, we'll document what needs to be done
+        after-script:
+          # Cleanup and update comment with results
+          - bun run src/entrypoints/update-comment-link.ts
+        artifacts:
+          - claude-prompts/**
+          - execution-results/**
+
+pipelines:
+  pull-requests:
+    '**':
+      - step: *claude-code-action
+        # Only run when PR comment contains trigger phrase
+        # Note: Bitbucket doesn't have native support for comment triggers
+        # This would need to be implemented via webhooks or API polling
+
+  # Alternative: Run on all PRs and process comments via API
+  default:
+    - step:
+        name: Check for Claude triggers
+        script:
+          - echo "Checking for Claude triggers in PR comments..."
+          # This would need custom logic to check PR comments via Bitbucket API
+
+# Environment variables needed (set in repository settings):
+# - ANTHROPIC_API_KEY: Your Anthropic API key
+# - BITBUCKET_AUTH_TOKEN: Bitbucket API authentication token
+# - TRIGGER_PHRASE: Trigger phrase (default: @claude)
+# - ALLOWED_TOOLS: Comma-separated list of allowed tools
+# - DISALLOWED_TOOLS: Comma-separated list of disallowed tools
+# - CUSTOM_INSTRUCTIONS: Additional instructions for Claude
+# - MCP_CONFIG: MCP server configuration
