@@ -1,0 +1,101 @@
+# Bitbucket Pipeline configuration for Claude Code integration
+# This configuration is triggered by the webhook receiver when a comment contains the trigger phrase
+
+definitions:
+  caches:
+    bun: ~/.bun/install/cache
+  
+  steps:
+    - step: &validate-environment
+        name: Validate Environment
+        image: node:20
+        script:
+          - |
+            echo "Validating required environment variables..."
+            required_vars=("BITBUCKET_AUTH_TOKEN" "ANTHROPIC_API_KEY")
+            missing_vars=()
+            
+            for var in "${required_vars[@]}"; do
+              if [ -z "${!var}" ]; then
+                missing_vars+=("$var")
+              fi
+            done
+            
+            if [ ${#missing_vars[@]} -ne 0 ]; then
+              echo "ERROR: Missing required environment variables: ${missing_vars[*]}"
+              exit 1
+            fi
+            
+            echo "✅ All required environment variables are set"
+    
+    - step: &claude-code-action
+        name: Claude Code Action
+        image: node:20
+        caches:
+          - node
+          - bun
+        script:
+          # Install Bun runtime
+          - curl -fsSL https://bun.sh/install | bash
+          - export PATH="$HOME/.bun/bin:$PATH"
+          
+          # Install dependencies
+          - bun install
+          
+          # Run the Bitbucket-adapted Claude Code Action
+          - bun run src/entrypoints/bitbucket-prepare.ts
+          
+        after-script:
+          # Update comment with results
+          - bun run src/entrypoints/bitbucket-update-comment.ts
+        artifacts:
+          - claude-prompts/**
+          - execution-results/**
+
+pipelines:
+  # Custom pipeline triggered by webhook receiver
+  custom:
+    claude-code-action:
+      - step: *validate-environment
+      - step: *claude-code-action
+  
+  # Manual trigger for testing
+  custom:
+    claude-manual:
+      - step:
+          name: Manual Claude Trigger
+          script:
+            - echo "Manual trigger - set CLAUDE_PR_NUMBER or CLAUDE_ISSUE_NUMBER"
+      - step: *validate-environment
+      - step: *claude-code-action
+  
+  # Scheduled pipeline for polling approach (optional)
+  schedules:
+    - cron: "*/10 * * * *"  # Every 10 minutes
+      pipelines:
+        - step:
+            name: Poll for Claude Triggers
+            image: node:20
+            script:
+              - curl -fsSL https://bun.sh/install | bash
+              - export PATH="$HOME/.bun/bin:$PATH"
+              - bun install
+              - bun run src/entrypoints/bitbucket-poll-triggers.ts
+
+# Environment variables needed (set in repository settings):
+# Required:
+# - ANTHROPIC_API_KEY: Your Anthropic API key
+# - BITBUCKET_AUTH_TOKEN: Bitbucket API authentication token (with PR/issue read/write)
+# 
+# Optional:
+# - TRIGGER_PHRASE: Trigger phrase (default: @claude)
+# - ALLOWED_TOOLS: Comma-separated list of allowed tools
+# - DISALLOWED_TOOLS: Comma-separated list of disallowed tools
+# - CUSTOM_INSTRUCTIONS: Additional instructions for Claude
+# - ALLOWED_USERS: Comma-separated list of users allowed to trigger Claude
+# 
+# Set by webhook receiver:
+# - CLAUDE_PR_NUMBER: PR number to process
+# - CLAUDE_ISSUE_NUMBER: Issue number to process
+# - CLAUDE_COMMENT_ID: Comment ID that triggered the action
+# - CLAUDE_TRIGGER_USER: User who triggered the action
